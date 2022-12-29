@@ -22,13 +22,8 @@ def foo(a, b, c):
 def bar(**kwargs):
     """This is the docstring for bar."""
 
-assert inspect.signature(bar) == inspect.signature(foo)
-
-print(inspect.signature(bar))
-# (a, b, c)
-
-print(inspect.getdoc(bar))
-# This is the docstring for bar.
+assert foo.__doc__ == bar.__doc__ == "This is the docstring for foo."
+assert inspect.signature(bar).parameters.keys() == {"a", "b", "c"}
 ```
 
 # Limitations
@@ -38,19 +33,17 @@ decide which function's docstring to use.
 
 ```python
 from delegatefn import delegate
-import inspect
-
 
 def foo(a, b, c):
     """This is the docstring for foo."""
-
 
 @delegate(foo, delegate_docstring=False)
 def bar(**kwargs):
     """This is the docstring for bar."""
 
-
-print(inspect.getdoc(bar))
-# This is the docstring for foo.
+assert foo.__doc__ != bar.__doc__ == "This is the docstring for bar."
 ```
-    
+
+# Acknowledgements
+
+This approach was inspired by [fast.ai](https://www.fast.ai/posts/2019-08-06-delegation.html).

@@ -2,7 +2,7 @@ import inspect
 from typing import Callable, Set
 
 
-def delegate(delegatee: Callable, *, kwonly: bool = False, delegate_docstring: bool = True, ignore: Set[str] = set()):
+def delegate(delegatee: Callable, *, kwonly: bool = False, delegate_docstring: bool = True, ignore: Set[str] = set(), kwargs_name: str = 'kwargs', default_values: bool = False, preserve_signature: bool = False):
     """
     Delegate kwargs to another function.
 
@@ -19,6 +19,9 @@ def delegate(delegatee: Callable, *, kwonly: bool = False, delegate_docstring: b
     delegator function.
     :param ignore: A set of argument names to ignore in the delegatee function. These arguments
     will not be included in the delegator function.
+    :param kwargs_name: The name of the **kwargs parameter in the delegator function.
+    :param default_values: Whether to transfer default values for arguments from the delegatee to the delegator.
+    :param preserve_signature: Whether to preserve the function signature of the delegator function.
     :return: A decorator that can be used to delegate kwargs from the delegatee function to the
     delegator function
     """
@@ -38,8 +41,8 @@ def delegate(delegatee: Callable, *, kwonly: bool = False, delegate_docstring: b
         delegatee_sig = inspect.signature(delegatee)
         delegator_sig = inspect.signature(delegator)
 
-        # Check that the last parameter of the delegator is a **kwargs parameter
-        assert delegator_sig.parameters[list(delegator_sig.parameters.keys())[-1]].kind == inspect.Parameter.VAR_KEYWORD
+        # Check that the last parameter of the delegator is a **kwargs parameter with the specified name
+        assert delegator_sig.parameters[kwargs_name].kind == inspect.Parameter.VAR_KEYWORD, f"The delegator must have a **kwargs parameter named {kwargs_name}."
 
         # Gather the keyword-only and **kwargs parameters from the delegatee function
         delegatee_kwargs = {}
@@ -65,6 +68,9 @@ def delegate(delegatee: Callable, *, kwonly: bool = False, delegate_docstring: b
             # Add keyword-only arguments from delegatee to delegatee_kwargs
             elif param.kind == param.KEYWORD_ONLY:
                 delegatee_kwargs[name] = param
+            # Add default values from delegatee to delegatee_kwargs if default_values is True
+            elif default_values:
+                delegatee_kwargs[name] = param.replace(default=param.default)
 
         # Check that the delegatee function does not have any **kwargs parameters, or that at least
         # one **kwargs parameter is included in delegatee_kwargs
@@ -76,6 +82,10 @@ def delegate(delegatee: Callable, *, kwonly: bool = False, delegate_docstring: b
         # the delegatee function coming after the **kwargs parameter in the delegator function
         parameters = list(delegator_sig.parameters.values())[:-1] + list(delegatee_kwargs.values())
         # Update the signature of the delegator function with the combined parameters
+        if preserve_signature:
+            # Convert the parameters from the delegatee function to default-only parameters
+            for name, param in delegatee_kwargs.items():
+                parameters[name] = param.replace(kind=param.POSITIONAL_OR_KEYWORD, default=param.default)
         delegator.__signature__ = delegator_sig.replace(parameters=parameters)
 
         # If delegate_docstring is True, copy the docstring from the delegatee function to the delegator function

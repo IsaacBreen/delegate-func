@@ -30,9 +30,11 @@ The delegator function will now have the parameters of delegatee added to it, wh
 
 You can also customize the behavior of the `delegate` decorator by passing in the following keyword arguments:
 
-`kwonly`: A boolean value indicating whether the parameters of delegatee should be converted to keyword-only arguments. The default value is `True`.
-`delegate_docstring`: A boolean value indicating whether the docstring of delegatee should be used as the docstring of the delegator function. The default value is `True`.
-`ignore`: A set of strings containing the names of the parameters of delegatee that should be ignored. The default value is an empty set.
+- `kwonly`: A boolean value indicating whether the parameters of delegatee should be converted to keyword-only arguments. The default value is `True`.
+
+- `delegate_docstring`: A boolean value indicating whether the docstring of delegatee should be used as the docstring of the delegator function. The default value is `True`.
+
+- `ignore`: A set of strings containing the names of the parameters of delegatee that should be ignored. The default value is an empty set.
 
 Here is an example of how to use these keyword arguments:
 

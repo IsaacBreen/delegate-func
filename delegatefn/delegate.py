@@ -1,162 +1,94 @@
+from typing import Callable, Set
 import inspect
 import sys
 
 
-def delegate(
-    delegatee: callable, *, kwonly: bool = False, delegate_docstring: bool = True, ignore: set[str] = set()
-):
+def delegate(delegatee: Callable, *, kwonly: bool = False, delegate_docstring: bool = True, ignore: Set[str] = set()):
     """
     Delegate kwargs to another function.
 
-    :param delegatee: The function to delegate to.
-    :param kwonly: Whether to delegate only keyword arguments.
-    :param delegate_docstring: Whether to copy the docstring from the delegated function.
-    :return: A decorator that delegates kwargs to the given function.
+    This function returns a decorator that can be used to transfer keyword arguments, including
+    annotations and docstrings, from a "delegatee" function to a "delegator" function. The
+    delegator function must accept a **kwargs parameter, which will be populated with the
+    keyword arguments from the delegatee function.
 
-    ## Example
+    Parameters:
+        - delegatee: The function to delegate to.
+        - kwonly: Whether to delegate only keyword arguments. If True, any positional or
+          keyword arguments in the delegatee function will be converted to keyword-only
+          arguments in the delegator function.
+        - delegate_docstring: Whether to copy the docstring from the delegatee function to the
+          delegator function.
+        - ignore: A set of argument names to ignore in the delegatee function. These arguments
+          will not be included in the delegator function.
 
-    >>> from delegatefn import delegate
-    >>> import inspect
-    >>>
-    >>> def foo(a, b, c):
-    ...     \"""This is the docstring for foo.\"""
-    ...
-    >>> @delegate(foo)
-    ... def bar(**kwargs):
-    ...     pass
-    ...
-    >>> print(inspect.signature(bar))
-    (*, a, b, c)
-    >>> print(inspect.getdoc(bar))
-    This is the docstring for foo.
+    Returns:
+        A decorator that can be used to delegate kwargs from the delegatee function to the
+        delegator function
     """
 
-    def decorator(
-        delegator: callable
-    ):
-        "Transfer keyword arguments, including annotations and docstrings, from delegatee to delegator"
+    def decorator(delegator: Callable):
+        """
+        Transfer keyword arguments, including annotations and docstrings, from delegatee to delegator.
+
+        Parameters:
+            - delegator: The function to delegate to. This function must accept a **kwargs
+              parameter.
+
+        Returns:
+            The modified delegator function.
+        """
+        # Get the signature objects for the delegatee and delegator functions
         delegatee_sig = inspect.signature(delegatee)
         delegator_sig = inspect.signature(delegator)
-        # The last parameter of the delegator must be **kwargs.
+
+        # Check that the last parameter of the delegator is a **kwargs parameter
         assert delegator_sig.parameters[list(delegator_sig.parameters.keys())[-1]].kind == inspect.Parameter.VAR_KEYWORD
-        # Gather parameters from delegatee
-        # Exclude:
-        # - arguments that are already defined in delegator
-        # - positional-only arguments
-        # - if kwonly, positional-or-keyword arguments
+
+        # Gather the keyword-only and **kwargs parameters from the delegatee function
         delegatee_kwargs = {}
         for name, param in delegatee_sig.parameters.items():
+            # Skip ignored arguments
             if name in ignore:
                 continue
             # Transfer annotations from delegatee to delegator for keyword arguments without annotations in delegator
             if param.kind == param.KEYWORD_ONLY or param.kind == param.POSITIONAL_OR_KEYWORD and name not in ignore:
                 if name in delegator_sig.parameters and delegator_sig.parameters[name].annotation is inspect._empty:
                     delegator.__annotations__[name] = param.annotation
+            # Add **kwargs parameters and keyword-only parameters from delegatee to delegatee_kwargs
             if param.kind == param.VAR_KEYWORD:
                 delegatee_kwargs[name] = param
+            # Skip arguments that are already defined in the delegator function
             elif name in delegator_sig.parameters:
                 continue
+            # Convert positional or keyword arguments in the delegatee function to keyword-only arguments
+            # if kwonly is True
             elif param.kind == param.POSITIONAL_OR_KEYWORD:
                 if not kwonly:
-                    # Make the argument keyword-only
                     delegatee_kwargs[name] = param.replace(kind=param.KEYWORD_ONLY)
+            # Add keyword-only arguments from delegatee to delegatee_kwargs
             elif param.kind == param.KEYWORD_ONLY:
                 delegatee_kwargs[name] = param
+
+        # Check that the delegatee function does not have any **kwargs parameters, or that at least
+        # one **kwargs parameter is included in delegatee_kwargs
         assert all([param.kind != param.VAR_KEYWORD for param in delegatee_sig.parameters.values()]) or any(
             [param.kind == param.VAR_KEYWORD for param in delegatee_kwargs.values()]
         ), f"If the delegatee has a **kwargs parameter, the delegator must have a **kwargs parameter. Got signatures {delegatee_sig} and {delegator_sig} for delegatee and delegator, respectively, but computed signature {inspect.Signature(delegatee_kwargs.values())} for the combined parameters."
-        # Add parameters to delegator
+
+        # Combine the parameters of the delegator and delegatee functions, with the parameters from
+        # the delegatee function coming after the **kwargs parameter in the delegator function
         parameters = list(delegator_sig.parameters.values())[:-1] + list(delegatee_kwargs.values())
-        # Transfer it
+        # Update the signature of the delegator function with the combined parameters
         delegator.__signature__ = delegator_sig.replace(parameters=parameters)
+
+        # If delegate_docstring is True, copy the docstring from the delegatee function to the delegator function
         if delegate_docstring:
             delegator.__doc__ = delegatee.__doc__
-        # Return delegator
+
+        # Return the modified delegator function
         return delegator
 
+    # Return the decorator function
     return decorator
 
-
-if "pytest" in sys.modules:
-    import pytest
-
-
-    def make_readme_example_1_fns():
-        def foo(a, b, c):
-            """This is the docstring for foo."""
-            pass
-
-        @delegate(foo)
-        def bar(**kwargs):
-            pass
-
-        def bar_expected(*, a, b, c):
-            """This is the docstring for foo."""
-
-        return foo, bar, bar_expected
-
-
-    def make_readme_example_2_fns():
-        def foo(a, b, c):
-            """This is the docstring for foo."""
-
-        @delegate(foo, delegate_docstring=False)
-        def bar(**kwargs):
-            """This is the docstring for bar."""
-
-        def bar_expected(*, a, b, c):
-            """This is the docstring for bar."""
-
-        return foo, bar, bar_expected
-
-
-    def make_other_1_fns():
-        def func(b: int, c=None, *, d, e=None):
-            "A docstring"
-
-        @delegate(func)
-        def func2(x, **kwargs):
-            return func(**kwargs)
-
-        def func2_expected(x, *, b: int, c=None, d, e=None):
-            "A docstring"
-
-        return func, func2, func2_expected
-
-
-    def make_other_2_fns():
-        "Retain **kwargs."
-
-        def func(a, b, c, **kwargs):
-            "A docstring"
-
-        @delegate(func)
-        def func2(**kwargs):
-            return func(**kwargs)
-
-        def func2_expected(*, a, b, c, **kwargs):
-            "A docstring"
-
-        return func, func2, func2_expected
-
-
-    def make_ignore_fns():
-        def func(a, b, c):
-            "A docstring"
-
-        @delegate(func, ignore={"a"})
-        def func2(**kwargs):
-            return func(**kwargs)
-
-        def func2_expected(*, b, c):
-            "A docstring"
-
-        return func, func2, func2_expected
-
-
-    @pytest.mark.parametrize(
-        "delegatee, delegator, expected",
-        [make_readme_example_1_fns(), make_readme_example_2_fns(), make_other_1_fns(), make_other_2_fns(),
-            make_ignore_fns()], )
-    def test_delegate(delegatee, delegator, expected):
-        assert inspect.signature(delegator) == inspect.signature(expected)

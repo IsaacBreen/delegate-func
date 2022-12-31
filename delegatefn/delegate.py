@@ -1,6 +1,5 @@
-from typing import Callable, Set
 import inspect
-import sys
+from typing import Callable, Set
 
 
 def delegate(delegatee: Callable, *, kwonly: bool = False, delegate_docstring: bool = True, ignore: Set[str] = set()):
@@ -12,19 +11,16 @@ def delegate(delegatee: Callable, *, kwonly: bool = False, delegate_docstring: b
     delegator function must accept a **kwargs parameter, which will be populated with the
     keyword arguments from the delegatee function.
 
-    Parameters:
-        - delegatee: The function to delegate to.
-        - kwonly: Whether to delegate only keyword arguments. If True, any positional or
-          keyword arguments in the delegatee function will be converted to keyword-only
-          arguments in the delegator function.
-        - delegate_docstring: Whether to copy the docstring from the delegatee function to the
-          delegator function.
-        - ignore: A set of argument names to ignore in the delegatee function. These arguments
-          will not be included in the delegator function.
-
-    Returns:
-        A decorator that can be used to delegate kwargs from the delegatee function to the
-        delegator function
+    :param delegatee: The function to delegate to.
+    :param kwonly: Whether to delegate only keyword arguments. If True, any positional or
+    keyword arguments in the delegatee function will be converted to keyword-only
+    arguments in the delegator function.
+    :param delegate_docstring: Whether to copy the docstring from the delegatee function to the
+    delegator function.
+    :param ignore: A set of argument names to ignore in the delegatee function. These arguments
+    will not be included in the delegator function.
+    :return: A decorator that can be used to delegate kwargs from the delegatee function to the
+    delegator function
     """
 
     def decorator(delegator: Callable):
@@ -91,4 +87,3 @@ def delegate(delegatee: Callable, *, kwonly: bool = False, delegate_docstring: b
 
     # Return the decorator function
     return decorator
-

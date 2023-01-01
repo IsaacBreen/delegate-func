@@ -23,7 +23,20 @@ def delegate(
                         The default value is an empty set.
     :return: The decorator function that modifies the delegator function.
     """
-
+    # Retrieve the parameter information of delegatee and filter out the ignored parameters.
+    delegatee_params = list(inspect.signature(delegatee).parameters.values())
+    delegatee_params = [param for param in delegatee_params if param.name not in ignore]
+    # Keep only the positional or keyword parameters of delegatee.
+    delegatee_params = [
+        param for param in delegatee_params
+        if param.kind in (param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY, param.VAR_KEYWORD)
+    ]
+    # Convert the parameters of delegatee to keyword-only arguments if kwonly is True.
+    if kwonly:
+        delegatee_params = [
+            param.replace(kind=param.KEYWORD_ONLY) if param.kind == param.POSITIONAL_OR_KEYWORD else param
+            for param in delegatee_params
+        ]
 
     def decorator(delegator: Callable) -> Callable:
         """
@@ -32,15 +45,6 @@ def delegate(
         :param delegator: The function to be modified.
         :return: The modified delegator function.
         """
-        # Retrieve the parameter information of delegatee and filter out the ignored parameters.
-        delegatee_params = list(inspect.signature(delegatee).parameters.values())
-        delegatee_params = [param for param in delegatee_params if param.name not in ignore]
-        # Keep only the positional or keyword parameters of delegatee.
-        delegatee_params = [param for param in delegatee_params if param.kind in (param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY, param.VAR_KEYWORD)]
-        # Convert the parameters of delegatee to keyword-only arguments if kwonly is True.
-        if kwonly:
-            delegatee_params = [param.replace(kind=param.KEYWORD_ONLY) if param.kind == param.POSITIONAL_OR_KEYWORD else param
-                for param in delegatee_params]
         # Retrieve the parameter information of delegator and filter out the VAR_KEYWORD parameter.
         delegator_sig = inspect.signature(delegator)
         delegator_params = [param for param in delegator_sig.parameters.values() if param.kind != param.VAR_KEYWORD]

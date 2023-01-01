@@ -121,7 +121,6 @@ def test_delegate(
 
             # Check that the decorated delegator function has the expected docstring, if applicable.
             if delegate_docstring:
-                # NOTE: This doesn't work for lambdas. Need to fix.
                 assert decorated_delegator.__doc__ == delegatee.__doc__
             else:
                 assert decorated_delegator.__doc__ == delegator.__doc__

@@ -3,7 +3,7 @@ from typing import Callable, Set
 
 
 def delegate(
-    delegatee: Callable, *, kwonly: bool = True, delegate_docstring: bool = True, ignore: Set[str] = set()
+    delegatee: Callable, *, kwonly: bool = True, delegate_docstring: bool = False, ignore: Set[str] = set()
 ) -> Callable:
     """
     A decorator function that adds the parameters of a delegatee function to a delegator function,

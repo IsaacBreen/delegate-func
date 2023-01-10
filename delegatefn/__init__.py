@@ -53,13 +53,13 @@ def delegate(
         # Check for duplicate parameter names.
         if len(delegator_params) != len(set(param.name for param in delegator_params)):
             raise ValueError(f"Duplicate parameter names in {delegator_params}")
-        # Sort the combined parameters based on their type and default value.
+        # Sort the combined parameters based on their type and whether they specify a default value.
         new_delegator_params = sorted(
             delegator_params, key=lambda param: (param.kind, param.default is not inspect.Parameter.empty)
         )
         # Create a new signature for the delegator function.
         new_delegator_sig = delegator_sig.replace(parameters=new_delegator_params)
-        delegator.__signature__ = new_delegator_sig
+        delegator.__signature__ = new_delegator_sig  # type: ignore
         # Use the docstring of delegatee as the docstring of delegator if delegate_docstring is True.
         if delegate_docstring:
             delegator.__doc__ = delegatee.__doc__
